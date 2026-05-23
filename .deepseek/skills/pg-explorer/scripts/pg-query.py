@@ -19,19 +19,19 @@ QUERY_TIMEOUT_MS = 30000
 
 SQL_OVERVIEW = """
 SELECT
-  t.table_name,
+  t.table_schema||'.'|| t.table_name as table_name,
   pg_catalog.obj_description(pc.oid, 'pg_class') AS comment,
   (SELECT count(*) FROM information_schema.columns c
    WHERE c.table_schema = t.table_schema AND c.table_name = t.table_name) AS column_count,
-  pg_size_pretty(pg_total_relation_size(format('%I.%I', t.table_schema, t.table_name))) AS total_size,
+  pg_size_pretty(pg_total_relation_size(t.table_schema||'.'|| t.table_name)) AS total_size,
   pc.reltuples::bigint AS estimated_rows
 FROM information_schema.tables t
 JOIN pg_catalog.pg_class pc
   ON pc.relname = t.table_name
  AND pc.relnamespace = (SELECT oid FROM pg_catalog.pg_namespace WHERE nspname = t.table_schema)
 WHERE t.table_type = 'BASE TABLE'
-  AND t.table_schema NOT IN ('pg_catalog', 'information_schema')
-ORDER BY pg_total_relation_size(format('%I.%I', t.table_schema, t.table_name)) DESC
+  AND t.table_schema = %s
+ORDER by  pg_size_pretty(pg_total_relation_size(t.table_schema||'.'|| t.table_name))  DESC
 """
 
 SQL_TABLE_COLUMNS = """
@@ -384,7 +384,7 @@ def _output_md(result, fmt_func):
 # ── 故障处理 ──────────────────────────────────────────────────────
 
 def _fail(msg):
-    print(json.dumps({"success": False, "error": msg}))
+    print(json.dumps({"success": False, "error": msg}, ensure_ascii=False))
     sys.exit(1)
 
 
@@ -444,10 +444,10 @@ def cmd_conn_remove(name):
 
 # ── 子命令：overview ──────────────────────────────────────────────
 
-def cmd_overview(conn_name, fmt):
+def cmd_overview(conn_name, schema, fmt):
     cfg, _ = _load_config()
-    cinfo = _parse_url(_get_conn(cfg, conn_name)["url"])
-    result = _run_one(cinfo, SQL_OVERVIEW)
+    cinfo = _parse_url(_get_conn(cfg, conn_name)["url"]) 
+    result = _run_one(cinfo, SQL_OVERVIEW,params=(schema,) )
     result["connection"] = conn_name
     if fmt == "json":
         _output_json(result)
@@ -557,6 +557,7 @@ def main():
         p = sub.add_parser(cmd_name)
         p.add_argument("connection")
         p.add_argument("--format", required=True, choices=["json", "markdown"])
+        p.add_argument("-s", "--schema", required=True)
 
     # table
     tp = sub.add_parser("table")
@@ -583,7 +584,7 @@ def main():
         elif args.subcmd == "remove":
             cmd_conn_remove(args.name)
     elif args.command == "overview":
-        cmd_overview(args.connection, args.format)
+        cmd_overview(args.connection,args.schema, args.format)
     elif args.command == "table":
         cmd_table(args.connection, args.name, args.format)
     elif args.command == "indexes":

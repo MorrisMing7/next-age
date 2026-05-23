@@ -35,7 +35,7 @@ description: 只读 PostgreSQL 探查技能。探索 schema、表结构、索引
 
 | 命令 | 用途 | 行数限制 |
 |------|------|---------|
-| `overview <连接名> --format <json\|markdown>` | 所有表：表名 + 注释 + 列数 + 大小 + 估算行数 | 无 |
+| `overview <连接名> -s <schema> --format <json\|markdown>` | 指定 schema 下所有表：表名 + 注释 + 列数 + 大小 + 估算行数 | 无 |
 | `table <连接名> <表名> --format <json\|markdown>` | 单表：列(含注释) + 索引 + 约束 | 无 |
 | `indexes <连接名> --format <json\|markdown>` | 全局索引分布 | 无 |
 | `query <连接名> -q "<SQL>" --format <json\|markdown>` | 执行只读查询 | 默认 5，上限 20 |
